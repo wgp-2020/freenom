@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #===================================================================#
-#   Author: mybsdc <mybsdc@gmail.com>                               #
+#   Author: luolongfei <luolongf@gmail.com>                         #
 #   Intro: https://github.com/luolongfei/freenom                    #
 #===================================================================#
 
@@ -16,7 +16,7 @@ plain='\033[0m'
 # 生成配置文件
 if [ ! -f /conf/.env ]; then
     cp /app/.env.example /conf/.env
-    echo -e "[${green}Info${plain}] 已生成 .env 文件，请将 .env 文件中的配置项改为你自己的，然后重启容器"
+    echo -e "[${green}Info${plain}] 已生成 .env 文件，请将 .env 文件中的配置项改为你自己的，然后重启容器（如果你是在第三方 Docker 环境中使用容器，例如 railway/heroku 等平台，可忽略本条提醒）"
 fi
 if [ ! -f /app/.env ]; then
     ln -s /conf/.env /app/.env
@@ -38,11 +38,12 @@ else
         hour=$( echo ${RUN_AT} | egrep -o '^([01][0-9]|2[0-3]|[0-9])' )
         CRON_COMMAND="${minute} ${hour} * * * ${PHP_COMMAND}"
         echo -e "[${green}Info${plain}] 你已指定执行时间，续期任务将在北京时间每天 「${hour}:${minute}」 执行"
-    elif [[ "${RUN_AT}" =~ ^([0-9\/*-]+( |$)){5}$ ]]; then
+    elif [ "$(php /app/run -c=Cron -m=verify --cron_exp="${RUN_AT}")" -eq 1 ]; then
         CRON_COMMAND="${RUN_AT} ${PHP_COMMAND}"
+        echo -e "[${green}Info${plain}] 你自定义的 Cron 表达式为「${RUN_AT}」，已通过正则验证"
     else
         echo -e "[${red}Error${plain}] RUN_AT 的值无效"
-        echo -e "${yellow}请输入一个有效的时间指令，其值可以为时分格式，如：11:24，也可以为 CRON 命令中的时间格式，如：'24 11 * * *'，甚至可以不输入，让程序自动生成，推荐采用自动生成的方式，不建议手动指定此环境变量"
+        echo -e "${yellow}请输入一个有效的时间指令，其值可以为时分格式，如：11:24，也可以为 Cron 表达式，如：'24 11 * * *'，甚至可以不输入，让程序自动生成，推荐采用自动生成的方式，不建议手动指定此环境变量"
         exit 1
     fi
 fi
@@ -51,7 +52,7 @@ fi
 sed -i '/freenom_cron/'d /etc/crontabs/root
 echo -e "${CRON_COMMAND}" >> /etc/crontabs/root
 
-echo -e "[${green}Info${plain}] CRON_COMMAND: ${CRON_COMMAND}"
+echo -e "[${green}Info${plain}] 计划任务：${CRON_COMMAND}"
 
 php run
 
